@@ -1,5 +1,8 @@
 var test = require('tape')
-var memory = require('../index.js')(Uint8Array, 32)
+var memsize = 32
+var cnstsize = 16
+var internalsize = memsize + cnstsize + 1
+var memory = require('../index.js')(Uint8Array, memsize, cnstsize)
 var liberate = require('liberate')
 var map = liberate(Array.prototype.map)
 var reduce = liberate(Array.prototype.reduce)
@@ -14,25 +17,26 @@ function isZero(x){ return x === 0 }
 function points2next(c, i, arr){
   var expected_value = i == 0              ? 0
                      : i <  arr.length - 1 ? i + 1
-                     :                       1
+                     :                       cnstsize + 1
   return c == expected_value
 }
+
 test('init', function(t){
   t.ok(memory.data  instanceof Uint8Array, 'type is Uint8Array')
-  t.ok(memory.data.length == 33, 'data length is 33')
+  t.ok(memory.data.length == internalsize, 'data length is ' + internalsize)
   t.ok(every(memory.data, isZero), 'data is empty')
   t.ok(memory.ads  instanceof Uint8Array, 'index type is Uint8Array')
-  t.ok(memory.ads.length == 33, 'index data length is 33')
+  t.ok(memory.ads.length == internalsize, 'index data length is ' + internalsize)
   t.ok(every(memory.ads, points2next), 'index is correctly inited')
   t.end()
 })
 
 
-function saveString(str){
-  var pointer = memory.alloc(str.length)
+function saveString(str, cnst){
+  var pointer = cnst ? memory.cnst(str.length) : memory.alloc(str.length)
   var idx = pointer
   var i = 0
-  var guard = 33
+  var guard = internalsize
   // console.log('trying to save', str)
   while ( idx != 0 ) {
     //  console.log('d', idx, str.charCodeAt(i))
@@ -46,7 +50,7 @@ function saveString(str){
 function readString(pointer){
   var values = []
   var idx = pointer
-  var guard = 33
+  var guard = internalsize
   while ( idx != 0 ) {
     if ( ! (--guard) ) throw 'end'
     values.push(memory.data[idx])
@@ -58,6 +62,13 @@ function readString(pointer){
 test('alloc', function(t){
   var str = 'Hello World!'
   var p = saveString(str)
+  t.ok(str == readString(p), 'storing and restoring')
+  t.end()
+})
+
+test('const', function(t){
+  var str = 'i, robot'
+  var p = saveString(str, true)
   t.ok(str == readString(p), 'storing and restoring')
   t.end()
 })

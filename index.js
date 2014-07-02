@@ -1,20 +1,27 @@
 module.exports = Memory
 
-function Memory(type, size){
-  if ( (size + 1) <= 256 ) {
-    var address = new Uint8Array(size + 1)
-  } else if ( (size + 1) <= Math.pow(2, 16) ) {
-    var address = new Uint16Array(size + 1)
-  } else if ( (size + 1) <= Math.pow(2, 32) ) {
-    var address = new Uint32Array(size + 1)
+function Memory(type, size, cnstsize){
+  var length = size + cnstsize + 1
+  if ( (length) <= 256 ) {
+    var address = new Uint8Array(length)
+  } else if ( (length) <= Math.pow(2, 16) ) {
+    var address = new Uint16Array(length)
+  } else if ( (length) <= Math.pow(2, 32) ) {
+    var address = new Uint32Array(length)
   } else if ( size > Math.pow(2, 32) ) {
-    throw new Error('Maximum size is 2^32 - 1. You gave: '+ size)
+    throw new Error('Maximum size is 2^32 - 1. You gave: '+ size + cnstsize)
   }
 
-  var data = new type(size + 1)
+  var data = new type(length)
+
   var brk
   var last
   var unallocated = size
+
+  var cnstbrk = 1
+  var cnstlast = cnstsize
+  var cnstua = cnstsize
+
 
   init()
 
@@ -22,6 +29,7 @@ function Memory(type, size){
     data: data
   , ads: address
   , alloc: alloc
+  , cnst: cnst
   , free: free
   , reset: reset
   , brk: function(){ return brk}
@@ -33,7 +41,7 @@ function Memory(type, size){
     for ( var i = 1; i < address.length - 1 ; i ++ ) {
       address[i] = i + 1
     }
-    brk = 1
+    brk = cnstbrk + cnstua
     last = i
     address[last] = brk
   }
@@ -50,6 +58,22 @@ function Memory(type, size){
     if ( brk ) {
       address[last] = brk
     } else {
+      last = 0
+    }
+    address[end] = 0
+    return pointer
+  }
+
+  function cnst(length){
+    if ( length > cnstua ) throw new Error('run out of memory')
+    cnstua -= length
+    var pointer = cnstbrk
+    var end = pointer
+    while ( --length > 0 && end ) {
+      var end = address[end]
+    }
+    cnstbrk = cnstua ? address[end] : 0
+    if ( ! cnstbrk) {
       last = 0
     }
     address[end] = 0

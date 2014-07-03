@@ -88,7 +88,11 @@ function Memory(type, size, cnstsize){
   }
 
   function free(pointer){
-    if ( pointer < cnstlast ) throw new Error('trying to free a constant')
+    if ( pointer < cnstlast ) {
+      throw new Error('trying to free pointer: ' +
+                      pointer + ' which is protected ' +
+                      (pointer ? " because it's a constant" : '') )
+    }
     var prev = pointer
     var next = address[prev]
     var count = 1

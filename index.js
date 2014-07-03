@@ -1,6 +1,7 @@
 module.exports = Memory
 
 function Memory(type, size, cnstsize){
+  cnstsize = cnstsize || 0
   var length = size + cnstsize + 1
   if ( (length) <= 256 ) {
     var address = new Uint8Array(length)
@@ -21,6 +22,12 @@ function Memory(type, size, cnstsize){
   var cnstbrk = 1
   var cnstlast = cnstsize
   var cnstua = cnstsize
+  if ( cnstsize ) {
+    for ( var i = 1; i < cnstsize ; i ++ ) {
+      address[i] = i + 1
+    }
+    address[cnstsize] = 0
+  }
 
 
   init()
@@ -38,7 +45,7 @@ function Memory(type, size, cnstsize){
   }
 
   function init(){
-    for ( var i = 1; i < address.length - 1 ; i ++ ) {
+    for ( var i = cnstlast + 1; i < address.length - 1 ; i ++ ) {
       address[i] = i + 1
     }
     brk = cnstbrk + cnstua
@@ -81,32 +88,31 @@ function Memory(type, size, cnstsize){
   }
 
   function free(pointer){
-    if ( address[pointer] != 0 ) {
-      var prev = pointer
-      var next = address[prev]
-      var count = 1
-      while ( next != 0 ) {
-        data[prev] = 0
-        prev = next
-        next = address[prev]
-        count++
-      }
+    if ( pointer < cnstlast ) throw new Error('trying to free a constant')
+    var prev = pointer
+    var next = address[prev]
+    var count = 1
+    while ( next != 0 ) {
       data[prev] = 0
-      var temp = brk
-      brk = pointer
-      if ( temp ) {
-        address[prev] = temp
-        address[last] = brk
-      } else {
-        address[prev] = brk
-        last = prev
-      }
-      unallocated += count
+      prev = next
+      next = address[prev]
+      count++
     }
+    data[prev] = 0
+    var temp = brk
+    brk = pointer
+    if ( temp ) {
+      address[prev] = temp
+      address[last] = brk
+    } else {
+      address[prev] = brk
+      last = prev
+    }
+    unallocated += count
   }
 
   function reset(){
-    for ( var i = 0; i < data.length; i ++ ) {
+    for ( var i = cnstlast + 1; i < data.length; i ++ ) {
       data[i] = 0
     }
     init()

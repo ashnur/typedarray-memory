@@ -9,16 +9,36 @@ var reduce = liberate(Array.prototype.reduce)
 var every = liberate(Array.prototype.every)
 var slice = liberate(Array.prototype.slice)
 var join = liberate(Array.prototype.join)
+var filter = liberate(Array.prototype.filter)
 var fromCharCode = function(num){ return String.fromCharCode(num) }
 
 function add(x, y){ return x + y }
 function sum(xs){ return reduce(xs, add) }
 function isZero(x){ return x === 0 }
-function points2next(c, i, arr){
-  var expected_value = i == 0              ? 0
-                     : i <  arr.length - 1 ? i + 1
+function points2nextover(c, i, arr){
+  var expected_value = i == 0              ? cnstsize + 2
+                     : i <  arr.length - 1 ? cnstsize + i + 2
                      :                       cnstsize + 1
   return c == expected_value
+}
+function points2nextunder(c, i, arr){
+  var expected_value = i == 0              ? 0
+                     : i <  arr.length - 1 ? i + 1
+                     :                       0
+console.log(i, c, expected_value)
+  return c == expected_value
+}
+
+function index_over(min){
+  return function(_, i){
+    return i > min
+  }
+}
+
+function index_under(max){
+  return function(_, i){
+    return i <= max
+  }
 }
 
 test('init', function(t){
@@ -27,7 +47,10 @@ test('init', function(t){
   t.ok(every(memory.data, isZero), 'data is empty')
   t.ok(memory.ads  instanceof Uint8Array, 'index type is Uint8Array')
   t.ok(memory.ads.length == internalsize, 'index data length is ' + internalsize)
-  t.ok(every(memory.ads, points2next), 'index is correctly inited')
+  t.ok(every(filter(memory.ads, index_over(cnstsize)), points2nextover), 'index is correctly inited')
+console.log(filter(memory.ads, index_over(cnstsize)))
+dump()
+  t.ok(every(filter(memory.ads, index_under(cnstsize)), points2nextunder), 'index is correctly inited')
   t.end()
 })
 
@@ -40,7 +63,7 @@ function saveString(str, cnst){
   // console.log('trying to save', str)
   while ( idx != 0 ) {
     //  console.log('d', idx, str.charCodeAt(i))
-    if ( ! (--guard) ) throw 'end'
+    if ( ! (--guard) ) throw new Error ('corrupted data')
     memory.data[idx] = str.charCodeAt(i++)
     idx = memory.ads[idx]
   }
@@ -52,7 +75,7 @@ function readString(pointer){
   var idx = pointer
   var guard = internalsize
   while ( idx != 0 ) {
-    if ( ! (--guard) ) throw 'end'
+    if ( ! (--guard) ) throw new Error ('corrupted data')
     values.push(memory.data[idx])
     idx = memory.ads[idx]
   }
@@ -65,11 +88,11 @@ test('alloc', function(t){
   t.ok(str == readString(p), 'storing and restoring')
   t.end()
 })
-
+var constant_str_input = 'i, robot'
+var constant_str_stored
 test('const', function(t){
-  var str = 'i, robot'
-  var p = saveString(str, true)
-  t.ok(str == readString(p), 'storing and restoring')
+  constant_str_stored = saveString(constant_str_input, true)
+  t.ok(constant_str_input == readString(constant_str_stored), 'storing and restoring')
   t.end()
 })
 
@@ -79,18 +102,18 @@ function dump(){
   values.forEach(function(v, i){
     val_out.push([v+ ', ' +fromCharCode(v)+ ',' + i])
   })
-  // console.log('values')
-  // console.log(val_out.join('|'))
+  console.log('values')
+  console.log(val_out.join('|'))
   var indeces = slice(memory.ads,0)
   var ind_out = []
   indeces.forEach(function(v, i){
     ind_out.push(i+ ',' + v )
   })
-  // console.log('indeces')
-  // console.log(ind_out.join('|'))
-  // console.log('break', memory.brk())
-  // console.log('last', memory.lst())
-  // console.log('unalloc', memory.unalloc())
+  console.log('indeces')
+  console.log(ind_out.join('|'))
+  console.log('break', memory.brk())
+  console.log('last', memory.lst())
+  console.log('unalloc', memory.unalloc())
 }
 
 test('free', function(t){
@@ -120,10 +143,13 @@ test('free', function(t){
   t.end()
 })
 
+
 test('reset', function(t){
   memory.reset()
-  t.ok(every(memory.data, isZero), 'data is empty')
-  t.ok(every(memory.ads, points2next), 'index is correctly inited')
+//dump()
+  t.ok(every(filter(memory.data, index_over(cnstsize)), isZero), 'data is empty')
+  t.ok(every(filter(memory.ads, index_over(cnstsize)), points2nextover), 'index is correctly inited')
+  t.ok(constant_str_input == readString(constant_str_stored), 'storing and restoring')
   t.end()
 
 })

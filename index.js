@@ -1,6 +1,8 @@
 module.exports = Memory
+var rand = Math.random
 
-function Memory(type, size, cnstsize){
+function Memory(type, size, cnstsize, silent){
+  silent = silent || true
   cnstsize = cnstsize || 0
   var length = size + cnstsize + 1
   if ( (length) <= 256 ) {
@@ -29,6 +31,8 @@ function Memory(type, size, cnstsize){
     address[cnstsize] = 0
   }
 
+  var ff = []
+  var poss_free = 0
 
   init()
 
@@ -89,6 +93,7 @@ function Memory(type, size, cnstsize){
 
   function free(pointer){
     if ( pointer < cnstlast ) {
+      if ( silent ) return
       throw new Error('trying to free pointer: ' +
                       pointer + ' which is protected ' +
                       (pointer ? " because it's a constant" : '') )
@@ -103,16 +108,16 @@ function Memory(type, size, cnstsize){
       count++
     }
     data[prev] = 0
-    var temp = brk
-    brk = pointer
-    if ( temp ) {
-      address[prev] = temp
-      address[last] = brk
-    } else {
+    if ( brk ) {
       address[prev] = brk
+      address[last] = pointer
+    } else {
+      address[prev] = pointer
       last = prev
     }
+    brk = pointer
     unallocated += count
+
   }
 
   function reset(){
@@ -123,12 +128,10 @@ function Memory(type, size, cnstsize){
   }
 }
 
-
-
 function print(n, pointer){
   var v = []
   var i = []
-  var guard = 3000
+  var guard = 1000
   while (  pointer != 0  ) {
     if ( ! (guard --) ) throw new Error('print in free')
     v.push(data[pointer])
